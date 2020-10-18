@@ -13,17 +13,21 @@
  * Inits the serial USART with MIDI clock speed and 
  * registers delegates for the callbacks of the parser. 
  */
-SerialMidi::SerialMidi ( void (*note_on_handler_ptr)(uint8_t note, uint8_t velocity),
-                    	void (*realtime_handler_ptr)(uint8_t msg),
-                    	void (*note_off_handler_ptr)(uint8_t note, uint8_t velocity),
-                    	void (*control_change_handler_ptr)(uint8_t controller, uint8_t value) ) 
-						: serial_port(PTC17, PTC16, MIDI_BAUD_RATE)   
+SerialMidi::SerialMidi ( 
+	void (*note_on_handler_ptr)(uint8_t note, uint8_t velocity),
+	void (*realtime_handler_ptr)(uint8_t msg),
+	void (*note_off_handler_ptr)(uint8_t note, uint8_t velocity),
+	void (*control_change_handler_ptr)(uint8_t controller, uint8_t value), 
+	void (*midi_pitchwheel_ptr)(uint8_t valueLSB, uint8_t valueMSB)
+) 
+: serial_port(PTC17, PTC16, MIDI_BAUD_RATE)   
 {
     // Assign delegate's
     midi_note_on_delegate = note_on_handler_ptr;
     realtime_handler_delegate = realtime_handler_ptr;
     midi_note_off_delegate = note_off_handler_ptr;
     midi_control_change_delegate = control_change_handler_ptr;
+	midi_pitchwheel_delegate = midi_pitchwheel_ptr; 
     
     // init the serial-usart system done via Constructor just to be on the safe
 	// side we set it explicitly below 
@@ -203,10 +207,25 @@ void SerialMidi::ReceiveParser(void)
                 midi_note_off_delegate(global_midi_c2, global_midi_c3);
                 return;
             }
+			else if(global_running_status == C_PITCH_WHEEL) {
+				return; 
+			}
+			else if(global_running_status == C_PROGRAM_CHANGE) {
+				return; 
+			}
+			else if(global_running_status ==  C_POLYPHONIC_AFTERTOUCH) {
+				return; 
+			}
+			else if(global_running_status ==  C_CHANNEL_AFTERTOUCH) {
+				return; 
+			}
             else if(global_running_status == C_CONTROL_CHANGE) {
                 midi_control_change_delegate(global_midi_c2, global_midi_c3);
                 return;
             }
+			//else {
+			//	return; 
+			//	}
         }
         else {
             if(global_running_status == 0) {

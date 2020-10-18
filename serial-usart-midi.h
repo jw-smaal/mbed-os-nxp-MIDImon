@@ -139,10 +139,13 @@ enum midi_control_change {
 class SerialMidi {
 public: 
 	// During the SerialMidiInit the delegate callback functions need to be assigned
-	SerialMidi( void (*note_on_handler_ptr)(	uint8_t note, uint8_t velocity),
-				void (*realtime_handler_ptr)(	uint8_t msg),
-				void (*note_off_handler_ptr)(	uint8_t note, uint8_t velocity),
-				void (*control_change_handler_ptr)(uint8_t controller, uint8_t value));
+	SerialMidi( 
+		void (*note_on_handler_ptr)(	uint8_t note, uint8_t velocity),
+		void (*realtime_handler_ptr)(	uint8_t msg),
+		void (*note_off_handler_ptr)(	uint8_t note, uint8_t velocity),
+		void (*control_change_handler_ptr)(uint8_t controller, uint8_t value),
+		void (*midi_pitchwheel_ptr)(	uint8_t valueLSB, uint8_t valueMSB)
+	);
 
 	void ReceiveParser(void);
 	//void SerialMidiReceiveParser2(void);
@@ -181,6 +184,8 @@ private:
 	void (*realtime_handler_delegate)(uint8_t msg);
     void (*midi_note_off_delegate)(uint8_t note, uint8_t velocity);
 	void (*midi_control_change_delegate)(uint8_t controller, uint8_t value);
+	void (*midi_pitchwheel_delegate)(uint8_t valueLSB, uint8_t valueMSB); 
+	
 	BufferedSerial serial_port;
 
 	/**
