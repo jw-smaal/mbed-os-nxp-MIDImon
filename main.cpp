@@ -5,6 +5,7 @@
 #include "SerialBase.h"
 #include "mbed.h"
 #include "serial-usart-midi.h"
+#include <cstdint>
 
 
 
@@ -94,11 +95,17 @@ void midi_control_change_handler(uint8_t controller, uint8_t value) {
 }
 
 
+/**
+ * Not all MIDI controllers use the LSB on the pitch bend. 
+ * mid position == 0x2000 because this is a 14 bit value.  
+ * we use a signed int16_t and simply substract to be 
+ * able to present a human readable value  
+ */
 void midi_pitchwheel_handler(uint8_t valueLSB, uint8_t valueMSB)  {
+	int16_t pitch = (valueLSB + (valueMSB<<7)) - 0x2000; 
+	printf("midi_pitch_wheel_handler%2X %2X (%d)\n", valueLSB, valueMSB, pitch);
 	return; 
 }
-
-
 
 int main()
 {

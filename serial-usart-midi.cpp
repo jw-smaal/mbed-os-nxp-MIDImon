@@ -208,6 +208,7 @@ void SerialMidi::ReceiveParser(void)
                 return;
             }
 			else if(global_running_status == C_PITCH_WHEEL) {
+				midi_pitchwheel_delegate(global_midi_c2, global_midi_c3);
 				return; 
 			}
 			else if(global_running_status == C_PROGRAM_CHANGE) {
