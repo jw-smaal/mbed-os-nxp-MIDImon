@@ -200,8 +200,17 @@ void SerialMidi::ReceiveParser(void)
 			// We don't care about the input channel (OMNI) for now.
             global_running_status &= 0xF0;
             if(global_running_status == C_NOTE_ON){
-	            midi_note_on_delegate(global_midi_c2, global_midi_c3);
-                return;
+				if(global_midi_c3 == 0 ) {
+					// Most MIDI implementation use velocity zero
+					// as a note-off.  
+					midi_note_off_delegate(global_midi_c2, global_midi_c3);
+					return;
+				}  
+				else {
+	            	midi_note_on_delegate(global_midi_c2, global_midi_c3);
+					return;
+				}
+				return;
             }
             else if(global_running_status == C_NOTE_OFF) {
                 midi_note_off_delegate(global_midi_c2, global_midi_c3);

@@ -8,6 +8,11 @@
 #include <cstdint>
 
 
+/*
+ * Timer is global. 
+ */
+using namespace std::chrono;
+Timer t;
 
 
 /**
@@ -32,38 +37,22 @@ void realtime_handler(uint8_t msg)
 	static uint8_t midi_f8_counter; 
 	static uint8_t midi_beat; 
 	uint16_t ppm24; 
-	//float ppm24; 
-	float clk = 625000.0; 
-	float bpm; 
-
+	long long bpm; 
 
 	if (msg == 0xf8) {
-//		ppm24 = TCNT1; 
-		// If we reach 24 ticks (0 -- 23 == 24 ticks) 
-		if(midi_f8_counter == 23) { 
-			midi_f8_counter = 0; 
-			// Switch on the LED 
-			if(midi_beat == 3) {
-//				OCR2A = 0xf0;
-				midi_beat = 0; 
-//				i2c_lcd_write(CLEAR_DISPLAY);	
-				bpm = clk / ppm24;
-				printf("bpm:%.1f", bpm);
-	
-			}
-			else {
-				midi_beat++; 
-			}
-//			TCNT1 = 0;  
-		}
-		else if(midi_f8_counter == 11) {
-			// Switch off the LED 
-//			OCR2A = 0x40;
-			midi_f8_counter++;
+		if(midi_f8_counter == 23) {
+			t.stop(); 
+	 		bpm = 60000000 /  duration_cast<milliseconds>(t.elapsed_time()).count();
+			 printf("%llu milliseconds, BPM %llu\n", 
+			 		duration_cast<milliseconds>(t.elapsed_time()).count(),
+					bpm
+				 );
+			midi_f8_counter = 0;
+			t.reset(); 
+			t.start();
 		}
 		else {
 			midi_f8_counter++;
-//			TCNT1 = 0;  
 		}
 	}
 	else if(msg == 0xfe){
@@ -75,8 +64,6 @@ void realtime_handler(uint8_t msg)
 			midi_f8_counter =0; 
 			midi_beat = 0; 
 	}
-	
-
 	return;
 }
 
