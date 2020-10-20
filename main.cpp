@@ -2,10 +2,12 @@
   * MIDI parsing Test with the NXP FRDM-K64F board
   * Jan-Willem Smaal <usenet@gispen.org>  
  */
-#include "SerialBase.h"
+#include "MK64F12.h"
 #include "mbed.h"
-#include "serial-usart-midi.h"
+#include "SerialBase.h"
 #include <cstdint>
+
+#include "serial-usart-midi.h"
 
 
 /*
@@ -35,21 +37,31 @@ void midi_note_on_handler(uint8_t note, uint8_t velocity) {
 void realtime_handler(uint8_t msg)
 {
 	static uint8_t midi_f8_counter; 
-	static uint8_t midi_beat; 
+	//static uint8_t midi_beat; 
 	uint16_t ppm24; 
 	long long bpm; 
+	
+	//DigitalOut led2(LED2);
+	DigitalOut stat1(PTC3);
 
-	if (msg == 0xf8) {
+
+	if (msg == 0xf8) { 
 		if(midi_f8_counter == 23) {
+			stat1 = true; 
 			t.stop(); 
 	 		bpm = 60000000 /  duration_cast<milliseconds>(t.elapsed_time()).count();
-			 printf("%llu milliseconds, BPM %llu\n", 
+			 printf("%llu ms %llu us, BPM %llu\n", 
 			 		duration_cast<milliseconds>(t.elapsed_time()).count(),
+					duration_cast<microseconds>(t.elapsed_time()).count(),
 					bpm
 				 );
 			midi_f8_counter = 0;
 			t.reset(); 
 			t.start();
+		}
+		else if(midi_f8_counter == 11 ) {
+			stat1 = false; 
+			midi_f8_counter++; 
 		}
 		else {
 			midi_f8_counter++;
@@ -62,7 +74,6 @@ void realtime_handler(uint8_t msg)
 	else {
 			printf("RT msg:%x", msg);
 			midi_f8_counter =0; 
-			midi_beat = 0; 
 	}
 	return;
 }
@@ -94,19 +105,31 @@ void midi_pitchwheel_handler(uint8_t valueLSB, uint8_t valueMSB)  {
 	return; 
 }
 
+
+
+/**
+ * Main run loop never ends.   
+ */
 int main()
 {
 	// Application buffer to receive the data
     char buf[32] = {0};
+	uint16_t b2in_value; 
+	uint16_t b3in_value; 
+	uint16_t tmp; 
+
+	// I prefer the USB console port of the mbed to be 115200 
+	BufferedSerial pc(USBTX, USBRX);
+	pc.set_baud(115200);
 
     // Initialise the digital pin LED1 as an output
-    DigitalOut led(LED1);
+    DigitalOut led(LED3);
 	DigitalOut stat1(PTC3);
 	DigitalOut stat2(PTC2);
 	
 	// Analog input 
-	AnalogIn a0in(A0, MBED_CONF_TARGET_DEFAULT_ADC_VREF);
-	AnalogIn a1in(A1, MBED_CONF_TARGET_DEFAULT_ADC_VREF);
+	AnalogIn b2in(PTB2, MBED_CONF_TARGET_DEFAULT_ADC_VREF);
+	AnalogIn b3in(PTB3, MBED_CONF_TARGET_DEFAULT_ADC_VREF);
 
 	// Serial Midi outputs 
 	SerialMidi serialMidi(
@@ -115,12 +138,37 @@ int main()
 		&midi_note_off_handler,
 		&midi_control_change_handler,
 		&midi_pitchwheel_handler
-	);
+	); 
 
     while (1) {
 			led = !led;
 			stat2 = !led;
 			serialMidi.ReceiveParser();
+			
+			tmp = b2in.read_u16(); 
+			if (tmp == b2in_value) { 
+				// Do nothing 
+			}
+			else { 
+				b2in_value = tmp; 
+				tmp = MIDI_DATA & (tmp >> 8); 
+				serialMidi.ControlChange(SerialMidi::CH1, 
+										 SerialMidi::CTL_MSB_MODWHEEL, 
+										 tmp);
+			}
+
+			tmp = b3in.read_u16(); 
+			if (tmp == b3in_value) {
+				// Do nothing 
+			}
+			else {
+				b3in_value = tmp; 
+				tmp = MIDI_DATA & (tmp >> 8); 
+				serialMidi.ControlChange(SerialMidi::CH1, 
+										 SerialMidi::CTL_MSB_EXPRESSION, 
+										 tmp);
+			}
+
 	}  // End of while(1) loop 
 	
 	return 0;
