@@ -6,6 +6,7 @@
  *  Copyright (c) 2014 Jan-Willem Smaal. All rights reserved.
  */
 #include "serial-usart-midi.h"
+#include <cstdint>
 
 
 /**
@@ -39,7 +40,7 @@ SerialMidi::SerialMidi (
     );
 
 
-	global_running_status = 0; 
+	global_running_status_rx = 0; 
 	global_3rd_byte_flag = 0;
 	global_midi_c2 = 0;
 	global_midi_c3 = 0;
@@ -49,32 +50,44 @@ SerialMidi::SerialMidi (
 
 void SerialMidi::NoteON(uint8_t channel, uint8_t key, uint8_t velocity)
 {
-//    SerialTransmit(C_NOTE_ON | channel);
-//    SerialTransmit(key);
-//    SerialTransmit(velocity);
+//    serial.write(C_NOTE_ON | channel);
+//    serial.write(key);
+//    serial.write(velocity);
 }
 
 
 void SerialMidi::NoteOFF(uint8_t channel, uint8_t key, uint8_t velocity)
 {
-//    SerialTransmit(C_NOTE_OFF | channel);
-//    SerialTransmit(key);
-//    SerialTransmit(velocity);
+//    serial.write(C_NOTE_OFF | channel);
+//    serial.write(key);
+//    serial.write(velocity);
 }
 
 
 void SerialMidi::ControlChange(uint8_t channel, uint8_t controller, uint8_t val)
 {
-//    SerialTransmit(C_CONTROL_CHANGE | channel);
-//    SerialTransmit(controller);
-//    SerialTransmit(val);
+	uint8_t buf[4]; 
+	
+    buf[0] = C_CONTROL_CHANGE | channel;
+    buf[1] = controller;
+    buf[2] = val; 
+
+	// Running status especially usefull for smooth control change
+	if(global_running_status_tx == buf[0]) {
+		//printf("running status %2X\n", global_running_status_tx); 
+		serial_port.write(&buf[1], 2);
+	} 
+	else {
+		serial_port.write(buf, 3);
+		global_running_status_tx = buf[0];
+	}
 }
 
 
 void SerialMidi::ChannelAfterTouch(uint8_t channel, uint8_t val)
 {
-//    SerialTransmit(C_CHANNEL_AFTERTOUCH | channel);
- //   SerialTransmit(val);
+//    serial.write(C_CHANNEL_AFTERTOUCH | channel);
+ //   serial.write(val);
 }
 
 
@@ -96,47 +109,47 @@ void SerialMidi::ModWheel(uint8_t channel, uint16_t val)
  */
 void SerialMidi::PitchWheel(uint8_t channel, uint16_t val)
 {
-//    SerialTransmit(C_PITCH_WHEEL | channel);
+//    serial.write(C_PITCH_WHEEL | channel);
     // Value is 14 bits so need to shift 7
-//   SerialTransmit(val & ~(CHANNEL_VOICE_MASK));        // LSB
-//    SerialTransmit((val>>7) & ~(CHANNEL_VOICE_MASK));   // MSB
+//   serial.write(val & ~(CHANNEL_VOICE_MASK));        // LSB
+//    serial.write((val>>7) & ~(CHANNEL_VOICE_MASK));   // MSB
 }
 
 
 
 void SerialMidi::TimingClock(void)
 {
-//    SerialTransmit(RT_TIMING_CLOCK);
+//    serial.write(RT_TIMING_CLOCK);
 }
 
 
 void SerialMidi::Start(void)
 {
-//    SerialTransmit(RT_START);
+//    serial.write(RT_START);
 }
 
 
 void SerialMidi::Continue(void)
 {
-//    SerialTransmit(RT_CONTINUE);
+//    serial.write(RT_CONTINUE);
 }
 
 
 void SerialMidi::Stop(void)
 {
-//    SerialTransmit(RT_STOP);
+//    serial.write(RT_STOP);
 }
 
 
 void SerialMidi::Active_Sensing(void)
 {
-//    SerialTransmit(RT_ACTIVE_SENSING);
+//    serial.write(RT_ACTIVE_SENSING);
 }
 
 
 void SerialMidi::Reset(void)
 {
-//    SerialTransmit(RT_RESET);
+//    serial.write(RT_RESET);
 }
 
 
@@ -163,7 +176,7 @@ void SerialMidi::ReceiveParser(void)
 	}
 	//printf("%2X ", c);
 	// MIDI through (kind of with some processing delay)
-	serial_port.write(&c,1);
+	//serial_port.write(&c,1);
 	
     
     // Check if bit7 = 1
@@ -177,7 +190,7 @@ void SerialMidi::ReceiveParser(void)
             return;
         }
         else {
-            global_running_status = c;
+            global_running_status_rx = c;
             global_3rd_byte_flag = 0;
             // Is this a tune request
             if(c == SYSTEM_TUNE_REQUEST) {
@@ -198,8 +211,8 @@ void SerialMidi::ReceiveParser(void)
             global_midi_c3 = c;
 
 			// We don't care about the input channel (OMNI) for now.
-            global_running_status &= 0xF0;
-            if(global_running_status == C_NOTE_ON){
+            global_running_status_rx &= 0xF0;
+            if(global_running_status_rx == C_NOTE_ON){
 				if(global_midi_c3 == 0 ) {
 					// Most MIDI implementation use velocity zero
 					// as a note-off.  
@@ -212,24 +225,24 @@ void SerialMidi::ReceiveParser(void)
 				}
 				return;
             }
-            else if(global_running_status == C_NOTE_OFF) {
+            else if(global_running_status_rx == C_NOTE_OFF) {
                 midi_note_off_delegate(global_midi_c2, global_midi_c3);
                 return;
             }
-			else if(global_running_status == C_PITCH_WHEEL) {
+			else if(global_running_status_rx == C_PITCH_WHEEL) {
 				midi_pitchwheel_delegate(global_midi_c2, global_midi_c3);
 				return; 
 			}
-			else if(global_running_status == C_PROGRAM_CHANGE) {
+			else if(global_running_status_rx == C_PROGRAM_CHANGE) {
 				return; 
 			}
-			else if(global_running_status ==  C_POLYPHONIC_AFTERTOUCH) {
+			else if(global_running_status_rx ==  C_POLYPHONIC_AFTERTOUCH) {
 				return; 
 			}
-			else if(global_running_status ==  C_CHANNEL_AFTERTOUCH) {
+			else if(global_running_status_rx ==  C_CHANNEL_AFTERTOUCH) {
 				return; 
 			}
-            else if(global_running_status == C_CONTROL_CHANGE) {
+            else if(global_running_status_rx == C_CONTROL_CHANGE) {
                 midi_control_change_delegate(global_midi_c2, global_midi_c3);
                 return;
             }
@@ -238,45 +251,45 @@ void SerialMidi::ReceiveParser(void)
 			//	}
         }
         else {
-            if(global_running_status == 0) {
+            if(global_running_status_rx == 0) {
                 // Ignore data Byte if running status is  0
                 return;
             }
             else {
-                if (global_running_status < 0xC0) { // All 2 byte commands
+                if (global_running_status_rx < 0xC0) { // All 2 byte commands
                     global_3rd_byte_flag = 1;
                     global_midi_c2 = c;
                     // At this stage we have only 1 byte out of 2.
                     return;
                 }
-                else if (global_running_status < 0xE0) {    // All 1 byte commands
+                else if (global_running_status_rx < 0xE0) {    // All 1 byte commands
                     global_midi_c2 = c;
                     // TODO: !! Process callback/delegate for two bytes command.
                     return;
                 }
-                else if ( global_running_status < 0xF0){
+                else if ( global_running_status_rx < 0xF0){
                     global_3rd_byte_flag = 1;
                     global_midi_c2 = c;
                 }
 				//!!
-                else if ( global_running_status >= 0xF0) {
-                    if (global_running_status == 0xF2) {
-                        global_running_status = 0;
+                else if ( global_running_status_rx >= 0xF0) {
+                    if (global_running_status_rx == 0xF2) {
+                        global_running_status_rx = 0;
                         global_3rd_byte_flag = 1;
                         global_midi_c2 = c;
                         return;
                     }
-                    else if (global_running_status >= 0xF0 ){
-                        if(global_running_status == 0xF3 ||
-                           global_running_status == 0xF3 ) {
-                            global_running_status = 0;
+                    else if (global_running_status_rx >= 0xF0 ){
+                        if(global_running_status_rx == 0xF3 ||
+                           global_running_status_rx == 0xF3 ) {
+                            global_running_status_rx = 0;
                             global_midi_c2 = c;
                             // TODO: !! Process callback for two bytes command.
                             return;
                         }
                         else {
                             // Ignore status
-                            global_running_status = 0;
+                            global_running_status_rx = 0;
                             return;
                         }
                     }
