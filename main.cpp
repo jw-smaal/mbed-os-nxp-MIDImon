@@ -3,6 +3,7 @@
   * Jan-Willem Smaal <usenet@gispen.org>  
  */
 #include "MK64F12.h"
+#include "Semaphore.h"
 #include "ThisThread.h"
 #include "mbed.h"
 #include "SerialBase.h"
@@ -10,7 +11,8 @@
 
 #include "serial-usart-midi.h"
 
-
+// "global" semaphores
+//Semaphore sem_led(1);
 
 
 /////////////////////////////////////////////////////////////////
@@ -41,26 +43,24 @@ void realtime_handler(uint8_t msg)
 	uint16_t ppm24; 
 	long long bpm; 
 	
-	//DigitalOut led2(LED2);
-	DigitalOut stat1(PTC3);
-
-
 	if (msg == 0xf8) { 
 		if(midi_f8_counter == 23) {
-			stat1 = true; 
+			//stat1 = true; 
 			t.stop(); 
 	 		bpm = 60000000 /  duration_cast<milliseconds>(t.elapsed_time()).count();
+			//sem_led.acquire(); 
 			 printf("%llu ms %llu us, BPM %llu\n", 
 			 		duration_cast<milliseconds>(t.elapsed_time()).count(),
 					duration_cast<microseconds>(t.elapsed_time()).count(),
 					bpm
 				 );
+			//sem_led.release(); 
 			midi_f8_counter = 0;
 			t.reset(); 
 			t.start();
 		}
 		else if(midi_f8_counter == 11 ) {
-			stat1 = false; 
+			//stat1 = false; 
 			midi_f8_counter++; 
 		}
 		else {
@@ -72,7 +72,7 @@ void realtime_handler(uint8_t msg)
 		return; 
 	}
 	else {
-			printf("RT msg:%x", msg);
+			printf("RT msg:%x\n", msg);
 			midi_f8_counter =0; 
 	}
 	return;
@@ -109,27 +109,49 @@ void midi_pitchwheel_handler(uint8_t valueLSB, uint8_t valueMSB)  {
 
 
 
-
 /////////////////////////////////////////////////////////////////
 // Threads 
 /////////////////////////////////////////////////////////////////
-DigitalOut led1(LED1);
-DigitalOut led2(LED2);
 Thread thread_led1;
+Thread thread_led2;
 Thread thread_midi_tx;
+
 
 
 void led1_thread()
 {
-	
     while (true) {
-        led1 = !led1;
-        ThisThread::sleep_for(75ms);
-		led1 = !led1;
-        ThisThread::sleep_for(75ms);  
+       	ThisThread::sleep_for(1ms);
     }
 }
 
+void led2_thread()
+{
+	DigitalOut led2(LED2);
+	led2 =1; 
+	
+    while (true) {
+		//sem_led.acquire();
+        printf("2");
+		//pc.write("2",1);
+		//sem_led.release();
+        ThisThread::sleep_for(10ms);
+    }
+}
+
+
+/*  
+ * Need to rewrite this so that it becomes a singleton class
+ * Reason is that the serial port is used and can only be used in 
+ * one class 
+ */  
+SerialMidi serialMidiGlob(
+		&midi_note_on_handler,
+		&realtime_handler,
+		&midi_note_off_handler,
+		&midi_control_change_handler,
+		&midi_pitchwheel_handler
+); 
 
 
 void midi_tx_thread() 
@@ -138,28 +160,11 @@ void midi_tx_thread()
 	uint16_t b3in_value; 
 	uint16_t tmp; 
 
-	// I prefer the USB console port of the mbed to be 115200 
-	BufferedSerial pc(USBTX, USBRX);
-	pc.set_baud(115200);
-	
-	// Serial Midi outputs
-	// Need to fix the requirement for callbacks....   
-	// makes no sense in a TX thread. 
-	SerialMidi serialMidiTx(
-			&midi_note_on_handler,
-			&realtime_handler,
-			&midi_note_off_handler,
-			&midi_control_change_handler,
-			&midi_pitchwheel_handler
-	); 
-		
 	// Analog inputs 
 	AnalogIn b2in(PTB2, MBED_CONF_TARGET_DEFAULT_ADC_VREF);
 	AnalogIn b3in(PTB3, MBED_CONF_TARGET_DEFAULT_ADC_VREF);
 
-
 	while(true ) {
-	//	printf("Hello MIDI tx\n");
 		/*
 		* MIDI TX processing 
 		* This should really run in a seperate thread (transmission)  
@@ -175,7 +180,7 @@ void midi_tx_thread()
 			// We are shifting right 9 times as midi value can only 
 			// be 7 bits -->  16-9 = 7)
 			tmp = MIDI_DATA & (tmp >> 9);		 
-			serialMidiTx.ControlChange(SerialMidi::CH1, 
+			serialMidiGlob.ControlChange(SerialMidi::CH1, 
 									SerialMidi::CTL_MSB_MODWHEEL, 
 									tmp);
 		}
@@ -187,11 +192,11 @@ void midi_tx_thread()
 		else {
 			b3in_value = tmp; 
 			tmp = MIDI_DATA & (tmp >> 9); 
-			serialMidiTx.ControlChange(SerialMidi::CH1, 
+			serialMidiGlob.ControlChange(SerialMidi::CH1, 
 									SerialMidi::CTL_MSB_EXPRESSION, 
 									tmp);
 		}
-		ThisThread::sleep_for(2ms); 
+		ThisThread::sleep_for(3ms); 
 	}	
 }
 
@@ -214,32 +219,23 @@ int main()
 	pc.set_baud(115200);
 
     // Initialise the digital pin LED1 as an output
-    DigitalOut led(LED3);
-	DigitalOut stat1(PTC3);
+    //DigitalOut led(LED3);
+	//DigitalOut stat1(PTC3);
 	DigitalOut stat2(PTC2);
 
-	// Serial Midi input handler 
-	SerialMidi serialMidi(
-		&midi_note_on_handler,
-		&realtime_handler,
-		&midi_note_off_handler,
-		&midi_control_change_handler,
-		&midi_pitchwheel_handler
-	); 
-
-#if 1
+#if 0
 	// Test all the notes 
 	for(i = 0; i < 128; i++) { 
-		serialMidi.NoteON(SerialMidi::CH1, i, 100); 
+		serialMidiGlob.NoteON(SerialMidi::CH1, i, 100); 
 		ThisThread::sleep_for(40ms);
-		serialMidi.NoteOFF(SerialMidi::CH1, i, 10); 
+		serialMidiGlob.NoteOFF(SerialMidi::CH1, i, 10); 
 	}
 
 	// Test lower half the modulation wheel steps  
 	for(i = 128; i < 500; i++) { 
 		// explicit case required as there are two implementations 
 		// of this one 
-		serialMidi.ModWheel(SerialMidi::CH1, (uint16_t)i); 
+		serialMidiGlob.ModWheel(SerialMidi::CH1, (uint16_t)i); 
 	//	serialMidi.PitchWheel(CH1, (uint16_t)i);
 	}
 	
@@ -248,7 +244,7 @@ int main()
 		// explicit case required as there are two implementations 
 		// of this one 
 	//	serialMidi.ModWheel(CH1, (uint16_t)i); 
-		serialMidi.PitchWheel(SerialMidi::CH1, (uint16_t)i);
+		serialMidiGlob.PitchWheel(SerialMidi::CH1, (uint16_t)i);
 		ThisThread::sleep_for(10ms);
 	}
 	
@@ -256,26 +252,28 @@ int main()
 	for(i = 0; i < 128; i++) { 
 		// explicit case required as there are two implementations 
 		// of this one 
-		serialMidi.ModWheel(SerialMidi::CH1, (uint8_t)i); 
+		serialMidiGlob.ModWheel(SerialMidi::CH1, (uint8_t)i); 
 	}
-	serialMidi.ModWheel(SerialMidi::CH1, (uint8_t)0); 
+	serialMidiGlob.ModWheel(SerialMidi::CH1, (uint8_t)0); 
 #endif 
 
 	// All tests complete start the threads. 
 
 	thread_led1.start(led1_thread);
+	//thread_led2.start(led2_thread);
+
 	thread_midi_tx.start(midi_tx_thread);
 
-	
+
     while (true) {
-		led = !led;
-		stat2 = !led;
+		// Toggle green stat2 LED. 
+		stat2 = !stat2; 
 			
 		/* 
 		 * MIDI RX processing 
 		 */
-		printf("Main Thread\n");
-		serialMidi.ReceiveParser();
+		//printf("Main Thread\n");
+		serialMidiGlob.ReceiveParser();
 
 	}  // End of while(1) loop 
 	

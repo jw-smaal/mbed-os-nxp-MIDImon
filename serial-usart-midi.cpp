@@ -13,8 +13,6 @@
 #include <cstdint>
 #include <cstdio>
 
-Semaphore semaphore_serial(1); 
-
 /**
  * Constructor 
  * Inits the serial USART with MIDI clock speed and 
@@ -51,7 +49,7 @@ SerialMidi::SerialMidi (
 	global_3rd_byte_flag = 0;
 	global_midi_c2 = 0;
 	global_midi_c3 = 0;
-	global_midi_state = RESET;
+	global_midi_state = RESET; 
 }
 
 
@@ -103,14 +101,10 @@ void SerialMidi::ControlChange(uint8_t channel, uint8_t controller, uint8_t val)
 
 	// Running status especially usefull for smooth control change
 	if(global_running_status_tx == buf[0]) {
-		semaphore_serial.acquire();
 		serial_port.write(&buf[1], 2);
-		semaphore_serial.release();
 	} 
 	else {
-		semaphore_serial.acquire();
 		serial_port.write(buf, 3);
-		semaphore_serial.release();
 		global_running_status_tx = buf[0];
 	}
 }
@@ -253,23 +247,17 @@ char * SerialMidi::Text()
  */
 void SerialMidi::ReceiveParser(void)
 {
-    uint8_t c;
+	uint8_t c;
 
     // Read one byte from the circular FIFO input buffer
     // This buffer is filled by the ISR routine on receipt of
     // data on the port.
-    // c = SerialReceive();
-
-	semaphore_serial.acquire();
-	if( serial_port.read(&c, 1) == 0) {
-		semaphore_serial.release();
+    if( serial_port.read(&c, 1) == 0) {
 		return;
 	}
-	semaphore_serial.release();
 	//printf("%2X ", c);
 	// MIDI through (kind of with some processing delay)
 	//serial_port.write(&c,1);
-	
     
     // Check if bit7 = 1
     if ( c & CHANNEL_VOICE_MASK ) {
