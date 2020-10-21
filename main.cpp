@@ -12,6 +12,7 @@
 
 
 
+
 /////////////////////////////////////////////////////////////////
 //  MIDI callback functions  
 //  TODO: need to find a more C++ way of doing this with 
@@ -28,7 +29,6 @@ void midi_note_on_handler(uint8_t note, uint8_t velocity) {
  */
 using namespace std::chrono;
 Timer t;
-
 
 /** 
  * Called with realtime messages
@@ -115,19 +115,14 @@ void midi_pitchwheel_handler(uint8_t valueLSB, uint8_t valueMSB)  {
 /////////////////////////////////////////////////////////////////
 DigitalOut led1(LED1);
 DigitalOut led2(LED2);
-Thread thread1;
-Thread thread2;
-Thread thread3;
+Thread thread_led1;
+Thread thread_midi_tx;
 
 
 void led1_thread()
 {
-	// I prefer the USB console port of the mbed to be 115200 
-	BufferedSerial pc(USBTX, USBRX);
-	pc.set_baud(115200);
 	
     while (true) {
-		//printf("Hello LED1\n");
         led1 = !led1;
         ThisThread::sleep_for(75ms);
 		led1 = !led1;
@@ -135,21 +130,6 @@ void led1_thread()
     }
 }
 
-void led2_thread()
-{
-	// I prefer the USB console port of the mbed to be 115200 
-	BufferedSerial pc(USBTX, USBRX);
-	pc.set_baud(115200);
-	//printf("Hello LED2\n");
-
-    while (true) {
-		//printf("Hello LED2\n");
-        led2 = !led2;
-        ThisThread::sleep_for(50ms);
-        led2 = !led2;
-        ThisThread::sleep_for(50ms);
-    }
-}
 
 
 void midi_tx_thread() 
@@ -211,7 +191,7 @@ void midi_tx_thread()
 									SerialMidi::CTL_MSB_EXPRESSION, 
 									tmp);
 		}
-		ThisThread::sleep_for(1ms); 
+		ThisThread::sleep_for(2ms); 
 	}	
 }
 
@@ -237,13 +217,8 @@ int main()
     DigitalOut led(LED3);
 	DigitalOut stat1(PTC3);
 	DigitalOut stat2(PTC2);
-	
-#if 0 
-	// Analog input 
-	AnalogIn b2in(PTB2, MBED_CONF_TARGET_DEFAULT_ADC_VREF);
-	AnalogIn b3in(PTB3, MBED_CONF_TARGET_DEFAULT_ADC_VREF);
 
-	// Serial Midi outputs 
+	// Serial Midi input handler 
 	SerialMidi serialMidi(
 		&midi_note_on_handler,
 		&realtime_handler,
@@ -251,7 +226,8 @@ int main()
 		&midi_control_change_handler,
 		&midi_pitchwheel_handler
 	); 
-	
+
+#if 1
 	// Test all the notes 
 	for(i = 0; i < 128; i++) { 
 		serialMidi.NoteON(SerialMidi::CH1, i, 100); 
@@ -283,57 +259,24 @@ int main()
 		serialMidi.ModWheel(SerialMidi::CH1, (uint8_t)i); 
 	}
 	serialMidi.ModWheel(SerialMidi::CH1, (uint8_t)0); 
+#endif 
 
 	// All tests complete start the threads. 
 
-#endif 
-	thread1.start(led1_thread);
-	thread2.start(led2_thread);
-	thread3.start(midi_tx_thread);
+	thread_led1.start(led1_thread);
+	thread_midi_tx.start(midi_tx_thread);
 
+	
     while (true) {
-		ThisThread::sleep_for(1s);	// REMOVE ME!!! 
-			led = !led;
-			stat2 = !led;
+		led = !led;
+		stat2 = !led;
 			
-#if 0
-			/* 
-			 * MIDI RX processing 
-			 */
-			serialMidi.ReceiveParser();
+		/* 
+		 * MIDI RX processing 
+		 */
+		printf("Main Thread\n");
+		serialMidi.ReceiveParser();
 
- 
-			/*
-			 * MIDI TX processing 
-			 * This should really run in a seperate thread (transmission)  
-			 * as MIDI is full duplex.  
-			 */
-			tmp = b2in.read_u16(); 
-			if (tmp == b2in_value) { 
-				// Do nothing 
-			}
-			else { 
-				b2in_value = tmp; 
-				// We are shifting right 9 times as midi value can only 
-				// be 7 bits -->  16-9 = 7)
-				tmp = MIDI_DATA & (tmp >> 9);		 
-				serialMidi.ControlChange(SerialMidi::CH1, 
-										 SerialMidi::CTL_MSB_MODWHEEL, 
-										 tmp);
-			}
-
-			tmp = b3in.read_u16(); 
-			if (tmp == b3in_value) {
-				// Do nothing 
-			}
-			else {
-				b3in_value = tmp; 
-				tmp = MIDI_DATA & (tmp >> 9); 
-				serialMidi.ControlChange(SerialMidi::CH1, 
-										 SerialMidi::CTL_MSB_EXPRESSION, 
-										 tmp);
-			}
-#endif 
 	}  // End of while(1) loop 
 	
 	return 0;

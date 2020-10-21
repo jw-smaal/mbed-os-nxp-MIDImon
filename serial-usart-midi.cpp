@@ -13,7 +13,7 @@
 #include <cstdint>
 #include <cstdio>
 
-
+Semaphore semaphore_serial(1); 
 
 /**
  * Constructor 
@@ -103,10 +103,14 @@ void SerialMidi::ControlChange(uint8_t channel, uint8_t controller, uint8_t val)
 
 	// Running status especially usefull for smooth control change
 	if(global_running_status_tx == buf[0]) {
+		semaphore_serial.acquire();
 		serial_port.write(&buf[1], 2);
+		semaphore_serial.release();
 	} 
 	else {
+		semaphore_serial.acquire();
 		serial_port.write(buf, 3);
+		semaphore_serial.release();
 		global_running_status_tx = buf[0];
 	}
 }
@@ -256,9 +260,12 @@ void SerialMidi::ReceiveParser(void)
     // data on the port.
     // c = SerialReceive();
 
+	semaphore_serial.acquire();
 	if( serial_port.read(&c, 1) == 0) {
+		semaphore_serial.release();
 		return;
 	}
+	semaphore_serial.release();
 	//printf("%2X ", c);
 	// MIDI through (kind of with some processing delay)
 	//serial_port.write(&c,1);
