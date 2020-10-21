@@ -219,7 +219,8 @@ inline void SerialMidi::Active_Sensing(void)
 
 void SerialMidi::Reset(void)
 {
-//    serial.write(RT_RESET);
+	uint8_t c = RT_RESET;
+	serial_port.write(&c,1);
 }
 
 
