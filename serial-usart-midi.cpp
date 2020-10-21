@@ -4,7 +4,7 @@
  * for parsing pointers to callbacks/delegates need to 
  * be provided at instanciation.  
  *
- *  Created by Jan-Willem Smaal on 21/12/14.
+ *  Created by Jan-Willem Smaal on 21/12/2014.
  *  Ported to C++ on 21/10/2020 for ARM MBED platform   
  *  Copyright (c) 2014 Jan-Willem Smaal. All rights reserved.
  */
@@ -45,6 +45,8 @@ SerialMidi::SerialMidi (
         /* stop bit */ 	1
     );
 
+	// State information that must be kept "static" as MIDI
+	// information is processed byte by byte.  
 	global_running_status_rx = 0; 
 	global_3rd_byte_flag = 0;
 	global_midi_c2 = 0;
@@ -220,7 +222,7 @@ inline void SerialMidi::Active_Sensing(void)
 }
 
 
-void SerialMidi::Reset(void)
+inline void SerialMidi::Reset(void)
 {
 	uint8_t c = RT_RESET;
 	serial_port.write(&c,1);
@@ -264,9 +266,7 @@ void SerialMidi::ReceiveParser(void)
     
     // Check if bit7 = 1
     if ( c & CHANNEL_VOICE_MASK ) {
-	//	printf("Ch:%2X ", c);
-
-        // if (! (c & SYSTEM_REALTIME_MASK)) {
+	    // if (! (c & SYSTEM_REALTIME_MASK)) {
 		// is it a real-time message?  0xF8 up to 0xFF
         if (c >= 0xF8 ) {
 			realtime_handler_delegate(c);
@@ -287,8 +287,6 @@ void SerialMidi::ReceiveParser(void)
         }
     }
     else {  // Bit 7 == 0   (data)
-	//	printf("D:%2X ", c);
-
 	    if(global_3rd_byte_flag == 1) {
             global_3rd_byte_flag = 0;
             global_midi_c3 = c;

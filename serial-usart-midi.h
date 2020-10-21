@@ -10,6 +10,7 @@
 #define _SERIAL_USART_MIDI
 
 // Includes
+#include <cstdint>
 #include <stdint.h>
 #include "MK64F12.h"
 #include "mbed.h"
@@ -78,15 +79,15 @@ public:
 	char * Text(); // Text Representation of the Class status  
 
 	// Channel mode messages
-	void NoteON(uint8_t channel, uint8_t key, uint8_t velocity);
-	void NoteOFF(uint8_t channel, uint8_t key, uint8_t velocity);
+	void NoteON( 	uint8_t channel, uint8_t key, uint8_t velocity);
+	void NoteOFF(	uint8_t channel, uint8_t key, uint8_t velocity);
 	void ControlChange(uint8_t channel, uint8_t controller, uint8_t val);
 	void PitchWheel(uint8_t channel, uint16_t val);
 	void PitchWheel(uint8_t channel, int16_t val);	
-	void ModWheel(uint8_t channel, uint16_t val);
-	void ModWheel(uint8_t channel, uint8_t val); // Only MSB sent 8 bits
-	void ModWheel(uint8_t channel, int val) {
-
+	void ModWheel(	uint8_t channel, uint16_t val);
+	void ModWheel(	uint8_t channel, uint8_t val); // Only MSB sent 8 bits
+	void ModWheel(	uint8_t channel, int val) { 
+		SerialMidi::ModWheel(channel,(uint8_t)val); 
 	}
 	void ChannelAfterTouch(uint8_t channel, uint8_t val);
 
