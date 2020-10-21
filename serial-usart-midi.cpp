@@ -9,7 +9,10 @@
  *  Copyright (c) 2014 Jan-Willem Smaal. All rights reserved.
  */
 #include "serial-usart-midi.h"
+#include "mbed.h"
 #include <cstdint>
+#include <cstdio>
+
 
 
 /**
@@ -224,9 +227,18 @@ void SerialMidi::Reset(void)
 }
 
 
-void SerialMidi::Text()
-{
 
+char * SerialMidi::Text() 
+{
+	static char buf[64];
+	snprintf(buf, 64,
+			"run_tx:%2X,run_rx:%2X,3rd_byte:%2X,state:%2X",  
+			global_running_status_tx, 
+			global_running_status_rx,
+			global_3rd_byte_flag,
+			global_midi_state
+		);
+	return buf; 
 }
 
 

@@ -3,6 +3,7 @@
   * Jan-Willem Smaal <usenet@gispen.org>  
  */
 #include "MK64F12.h"
+#include "ThisThread.h"
 #include "mbed.h"
 #include "SerialBase.h"
 #include <cstdint>
@@ -112,6 +113,7 @@ void midi_pitchwheel_handler(uint8_t valueLSB, uint8_t valueMSB)  {
  */
 int main()
 {
+	int i, j; 
 	// Application buffer to receive the data
     char buf[32] = {0};
 	uint16_t b2in_value; 
@@ -140,10 +142,47 @@ int main()
 		&midi_pitchwheel_handler
 	); 
 
+	
+	// Test all the notes 
+	for(i = 0; i < 128; i++) { 
+		serialMidi.NoteON(SerialMidi::CH1, i, 100); 
+		ThisThread::sleep_for(40);
+		serialMidi.NoteOFF(SerialMidi::CH1, i, 10); 
+	}
+
+	// Test lower half the modulation wheel steps  
+	for(i = 128; i < 500; i++) { 
+		// explicit case required as there are two implementations 
+		// of this one 
+		serialMidi.ModWheel(SerialMidi::CH1, (uint16_t)i); 
+	//	serialMidi.PitchWheel(CH1, (uint16_t)i);
+	}
+	
+	// Test Pitch wheel 
+	for(i = 0x1F00; i < 0x2100; i++) { 
+		// explicit case required as there are two implementations 
+		// of this one 
+	//	serialMidi.ModWheel(CH1, (uint16_t)i); 
+		serialMidi.PitchWheel(SerialMidi::CH1, (uint16_t)i);
+		ThisThread::sleep_for(10);
+	}
+	
+	// Test all the modulation wheel steps (MSB only)  
+	for(i = 0; i < 128; i++) { 
+		// explicit case required as there are two implementations 
+		// of this one 
+		serialMidi.ModWheel(SerialMidi::CH1, (uint8_t)i); 
+	}
+	serialMidi.ModWheel(SerialMidi::CH1, (uint8_t)0); 
+
+
     while (1) {
 			led = !led;
 			stat2 = !led;
+			
+			printf("SerialMidi state: %s\n", serialMidi.Text());
 			serialMidi.ReceiveParser();
+
 			
 			tmp = b2in.read_u16(); 
 			if (tmp == b2in_value) { 

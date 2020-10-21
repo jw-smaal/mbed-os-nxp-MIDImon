@@ -75,7 +75,7 @@ public:
 	void ReceiveParser(void);
 	//void SerialMidiReceiveParser2(void);
 
-	void Text(void);
+	char * Text(); // Text Representation of the Class status  
 
 	// Channel mode messages
 	void NoteON(uint8_t channel, uint8_t key, uint8_t velocity);
@@ -85,6 +85,9 @@ public:
 	void PitchWheel(uint8_t channel, int16_t val);	
 	void ModWheel(uint8_t channel, uint16_t val);
 	void ModWheel(uint8_t channel, uint8_t val); // Only MSB sent 8 bits
+	void ModWheel(uint8_t channel, int val) {
+
+	}
 	void ChannelAfterTouch(uint8_t channel, uint8_t val);
 
 	// System Common messages
@@ -179,6 +182,9 @@ public:
 		CTL_MONO1                = 0x7E,  // Mono1
 		CTL_MONO2                = 0x7F   // Mono2
 };
+
+	// Midi channel 1 == 0x00 
+	// Cause for frequent confusion so better to use the defines.  
 	enum channel {
 			CH1   = 0,
 			CH2   = 1,
