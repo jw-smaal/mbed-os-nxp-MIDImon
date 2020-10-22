@@ -7,4 +7,7 @@ mbed-os
 TextLCD
 SerialMidi
 serialmidi
+<<<<<<< HEAD
 FXOS8700CQ
+=======
+>>>>>>> c281469cb3a11ef253310e90f1f3cfb17158df3c

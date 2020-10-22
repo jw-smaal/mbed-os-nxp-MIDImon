@@ -11,8 +11,11 @@
 #include <cstdio>
 
 #include "serial-midi.h"
+<<<<<<< HEAD
 #include "FXOS8700CQ.h"
 #include "unity_internals.h"
+=======
+>>>>>>> c281469cb3a11ef253310e90f1f3cfb17158df3c
 
 
 /////////////////////////////////////////////////////////////////
