@@ -6,3 +6,4 @@ BUILD
 mbed-os
 TextLCD
 SerialMidi
+serialmidi

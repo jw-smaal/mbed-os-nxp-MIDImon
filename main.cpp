@@ -9,7 +9,7 @@
 #include "SerialBase.h"
 #include <cstdint>
 
-#include "serial-usart-midi.h"
+#include "serial-midi.h"
 
 
 /////////////////////////////////////////////////////////////////
