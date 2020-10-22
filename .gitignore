@@ -6,3 +6,5 @@ BUILD
 mbed-os
 TextLCD
 SerialMidi
+serialmidi
+FXOS8700CQ

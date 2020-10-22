@@ -8,8 +8,11 @@
 #include "mbed.h"
 #include "SerialBase.h"
 #include <cstdint>
+#include <cstdio>
 
-#include "serial-usart-midi.h"
+#include "serial-midi.h"
+#include "FXOS8700CQ.h"
+#include "unity_internals.h"
 
 
 /////////////////////////////////////////////////////////////////
@@ -154,12 +157,33 @@ SerialMidi serialMidiGlob(
 void midi_tx_thread() 
 {
 	uint16_t b2in_value; 
-	uint16_t b3in_value; 
+	uint16_t b3in_value;
+	uint16_t prev_tmp; 
 	uint16_t tmp; 
+	int16_t tmpsig; 
+	uint8_t tmp8_t;
+
 
 	// Analog inputs 
 	AnalogIn b2in(PTB2, MBED_CONF_TARGET_DEFAULT_ADC_VREF);
 	AnalogIn b3in(PTB3, MBED_CONF_TARGET_DEFAULT_ADC_VREF);
+
+
+	// I prefer the USB console port of the mbed to be 115200
+	// This way printf's don't slow down the execution of the thread. 
+	// too much.  
+	BufferedSerial pc(USBTX, USBRX);
+	pc.set_baud(115200);
+
+	// Built in magneto and gyro chip of the NXP FRDM board 
+	FXOS8700CQ magneto(PTE25, PTE24, FXOS8700CQ_SLAVE_ADDR1);
+	magneto.enable();
+	printf("Sensor: %2X", magneto.get_whoami());
+	magneto.get_accel_scale();
+//	printf("Magneto %d %d %d\n", 
+//		magneto.getMagnetX(), 
+//		magneto.getMagnetY(), 
+//		magneto.getMagnetZ() );
 
 	while(true ) {
 		/*
@@ -181,6 +205,8 @@ void midi_tx_thread()
 									SerialMidi::CTL_MSB_MODWHEEL, 
 									tmp);
 		}
+
+
 		tmp = b3in.read_u16(); 
 		//printf("Read b3in %u\n",tmp); 
 		if (tmp == b3in_value) {
@@ -193,7 +219,35 @@ void midi_tx_thread()
 									SerialMidi::CTL_MSB_EXPRESSION, 
 									tmp);
 		}
-		ThisThread::sleep_for(3ms); 
+		
+
+		magneto.get_data();
+		// 16 bit signed
+		//printf("32768 -32768 "); 
+#if 1
+		printf("%04d %04d %04d ", 
+			magneto.getMagnetX(),  
+			magneto.getMagnetY(), 
+			magneto.getMagnetZ());
+		// 14 bit signed
+#endif 
+#if 1 	
+		printf("%04d %04d %04d \r\n", 
+			magneto.getAccelX(),
+			magneto.getAccelY(),
+			magneto.getAccelZ());
+#endif 
+		tmpsig = magneto.getMagnetZ(); 
+		tmp = MIDI_DATA & ((tmpsig + 8192) >>4); 
+
+		// Only send out if there is a change in value 
+		if (prev_tmp != tmp ) {
+			serialMidiGlob.ControlChange(SerialMidi::CH2, 
+									SerialMidi::CTL_MSB_MODWHEEL, 
+									tmp);
+			prev_tmp = tmp; 
+		} 
+		ThisThread::sleep_for(30ms); 
 	}	
 }
 
@@ -210,6 +264,7 @@ int main()
 	uint16_t b2in_value; 
 	uint16_t b3in_value; 
 	uint16_t tmp; 
+ 
 
 	// I prefer the USB console port of the mbed to be 115200
 	// This way printf's don't slow down the execution of the thread. 
