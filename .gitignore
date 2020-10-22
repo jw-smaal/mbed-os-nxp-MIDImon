@@ -5,3 +5,4 @@ projectfiles
 BUILD
 mbed-os
 TextLCD
+SerialMidi

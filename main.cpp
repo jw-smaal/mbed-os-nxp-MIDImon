@@ -11,9 +11,6 @@
 
 #include "serial-usart-midi.h"
 
-// "global" semaphores
-//Semaphore sem_led(1);
-
 
 /////////////////////////////////////////////////////////////////
 //  MIDI callback functions  
@@ -214,14 +211,14 @@ int main()
 	uint16_t b3in_value; 
 	uint16_t tmp; 
 
-	// I prefer the USB console port of the mbed to be 115200 
+	// I prefer the USB console port of the mbed to be 115200
+	// This way printf's don't slow down the execution of the thread. 
+	// too much.  
 	BufferedSerial pc(USBTX, USBRX);
 	pc.set_baud(115200);
 
-    // Initialise the digital pin LED1 as an output
-    //DigitalOut led(LED3);
-	//DigitalOut stat1(PTC3);
-	DigitalOut stat2(PTC2);
+    // Initialise the digital pin STAT2 as an output
+    DigitalOut stat2(PTC2);
 
 #if 0
 	// Test all the notes 
@@ -233,17 +230,15 @@ int main()
 
 	// Test lower half the modulation wheel steps  
 	for(i = 128; i < 500; i++) { 
-		// explicit case required as there are two implementations 
-		// of this one 
+		// explicit cast required as there are two implementations 
+		// of this one based on the bitsize of the int  
 		serialMidiGlob.ModWheel(SerialMidi::CH1, (uint16_t)i); 
-	//	serialMidi.PitchWheel(CH1, (uint16_t)i);
 	}
 	
 	// Test Pitch wheel 
 	for(i = 0x1F00; i < 0x2100; i++) { 
-		// explicit case required as there are two implementations 
+		// explicit cast required as there are two implementations 
 		// of this one 
-	//	serialMidi.ModWheel(CH1, (uint16_t)i); 
 		serialMidiGlob.PitchWheel(SerialMidi::CH1, (uint16_t)i);
 		ThisThread::sleep_for(10ms);
 	}
@@ -256,26 +251,24 @@ int main()
 	}
 	serialMidiGlob.ModWheel(SerialMidi::CH1, (uint8_t)0); 
 #endif 
-
 	// All tests complete start the threads. 
 
 	thread_led1.start(led1_thread);
-	//thread_led2.start(led2_thread);
-
 	thread_midi_tx.start(midi_tx_thread);
 
 
     while (true) {
-		// Toggle green stat2 LED. 
+		// Toggle green stat2 LED.  
 		stat2 = !stat2; 
 			
 		/* 
 		 * MIDI RX processing 
 		 */
-		//printf("Main Thread\n");
 		serialMidiGlob.ReceiveParser();
 
 	}  // End of while(1) loop 
 	
 	return 0;
 } // End of main(1) loop 
+
+/* EOF */ 

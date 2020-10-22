@@ -1,19 +1,56 @@
-/**
- * serial-usart-midi.h
+/** SerialMidi class 
+ * Used for traditional USART MIDI communication at 31250 BAUD 
+ * not suitable MIDI-USB.   This MIDI implementations 
+ * follows the MIDI specification strictly and employs running_status 
+ * reducing data transmissions considerably.     
+ * 
  * ported from C avr to C++ on ARM mbed platform 
+ *
+ *  Example:
+ *  @code
+ * include "mbed.h"
+ * include "serial-midi.h"
+ *   
+ *  SerialMidi serialMidiGlob(
+ *		&midi_note_on_handler,
+ *		&realtime_handler,
+ *		&midi_note_off_handler,
+ *		&midi_control_change_handler,
+ *		&midi_pitchwheel_handler
+ * ); 
+ *
+ *
+ * void midi_note_on_handler(uint8_t note, uint8_t velocity) {
+ *	printf("midi_note_on_handler(%2X, %2X)\n", note, velocity);
+ *	return; 
+ *}
+ *
+ *int main(void) {
+ *    while (true) {
+ *		serialMidiGlob.ReceiveParser();
+ *	} 
+ * } 
+ * @endcode
  *
  *  Created by Jan-Willem Smaal on 21/12/14.
  *  ported to C++ on 20 Oct 2020 
- *  Copyright (c) 2014 Jan-Willem Smaal. All rights reserved.
+ *  APACHE 2.0 license - Copyright (c) 2014 Jan-Willem Smaal. 
  */
 #ifndef _SERIAL_USART_MIDI
 #define _SERIAL_USART_MIDI
 
-// Includes
+// MBED OS Includes
 #include <cstdint>
 #include <stdint.h>
 #include "MK64F12.h"
 #include "mbed.h"
+
+// Hardware specific defines 
+// TODO: adjust for your board! 
+#define USART_TX PTC17
+#define USART_RX PTC16 
+
+
 
 
 /*-----------------------------------------------------------------------*/
@@ -64,7 +101,8 @@
 
 class SerialMidi {
 public: 
-	// During the SerialMidiInit the delegate callback functions need to be assigned
+	/**  During the SerialMidiInit the delegate callback functions need to be assigned
+	 */
 	SerialMidi( 
 		void (*note_on_handler_ptr)(	uint8_t note, uint8_t velocity),
 		void (*realtime_handler_ptr)(	uint8_t msg),
@@ -215,11 +253,9 @@ private:
 	
 	BufferedSerial serial_port;
 
-	/**
-	 * Required to be able to process MIDI data.
-	 * while keeping running state. 
+	/** Required to be able to process MIDI data.
+	 *  while keeping running state. 
  	 */
-	//uint8_t global_running_status;
 	uint8_t global_running_status_tx;
 	uint8_t global_running_status_rx;
 	uint8_t global_3rd_byte_flag;

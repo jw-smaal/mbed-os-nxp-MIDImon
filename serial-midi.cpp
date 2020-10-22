@@ -1,14 +1,13 @@
-/**
- * serial-usart-midi.c
- * Class that implements MIDI transmissions and parsing 
+/** SerialMidi Class that implements USART  MIDI transmissions and parsing 
  * for parsing pointers to callbacks/delegates need to 
  * be provided at instanciation.  
  *
  *  Created by Jan-Willem Smaal on 21/12/2014.
  *  Ported to C++ on 21/10/2020 for ARM MBED platform   
  *  Copyright (c) 2014 Jan-Willem Smaal. All rights reserved.
+ * 
  */
-#include "serial-usart-midi.h"
+#include "serial-midi.h"
 #include "mbed.h"
 #include <cstdint>
 #include <cstdio>
@@ -25,7 +24,7 @@ SerialMidi::SerialMidi (
 	void (*control_change_handler_ptr)(uint8_t controller, uint8_t value), 
 	void (*midi_pitchwheel_ptr)(uint8_t valueLSB, uint8_t valueMSB)
 ) 
-: serial_port(PTC17, PTC16, MIDI_BAUD_RATE) 	// Override default constructor
+: serial_port(USART_TX, USART_RX, MIDI_BAUD_RATE) 	// Override default constructor
 {
     // Assign delegate's
     midi_note_on_delegate 		= note_on_handler_ptr;
