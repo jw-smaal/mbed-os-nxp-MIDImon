@@ -10,9 +10,16 @@
 #include <cstdint>
 #include <cstdio>
 
+// Musical scale implementation by Jan-Willem Smaal <usenet@gispen.org> 
+#include "midi-scales.h"
+
+// Serial USART MIDI implementation by Jan-Willem Smaal <usenet@gispen.org> 
 #include "serial-midi.h"
 
+// Driver for the Magneto and Gyro 
 #include "FXOS8700CQ.h"
+
+
 
 
 /////////////////////////////////////////////////////////////////
@@ -310,7 +317,6 @@ int main()
 
 	thread_led1.start(led1_thread);
 	thread_midi_tx.start(midi_tx_thread);
-
 
     while (true) {
 		// Toggle green stat2 LED.  
