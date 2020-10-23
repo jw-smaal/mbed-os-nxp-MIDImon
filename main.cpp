@@ -21,7 +21,6 @@
 
 
 
-
 /////////////////////////////////////////////////////////////////
 //  MIDI callback functions  
 //  TODO: need to find a more C++ way of doing this with 
@@ -29,6 +28,33 @@
 /////////////////////////////////////////////////////////////////
 void midi_note_on_handler(uint8_t note, uint8_t velocity) {
 	printf("midi_note_on_handler(%2X, %2X)\n", note, velocity);
+
+
+	Scale scl(Scale::ScaleKinds::HARMONIC_MINOR, 0); 
+	uint8_t i, j; 
+	uint8_t midi_note = note; 
+	
+	// Play the root note based on value received
+	printf("midi_note: %d | ", midi_note);
+	#if 0 
+	serialMidiGlob.NoteON(SerialMidi::CH1, midi_note, velocity);
+	ThisThread::sleep_for(40ms);
+	serialMidiGlob.NoteOFF(SerialMidi::CH1, midi_note, velocity);
+	ThisThread::sleep_for(40ms);
+	#endif 
+
+	// Iterate through the rest of the scale 
+	for(i = 0; i < scl.notes; i++) {
+		printf("midi_note: %d | ", midi_note);
+		midi_note = midi_note + scl.ptrToScale[i]; 
+		#if 0
+		serialMidiGlob.NoteON(SerialMidi::CH1, midi_note, velocity;
+		ThisThread::sleep_for(40ms);
+		serialMidiGlob.NoteOFF(SerialMidi::CH1, midi_note, velocity;
+		ThisThread::sleep_for(40ms);
+		#endif 
+	}
+
 	return; 
 }
 
@@ -160,7 +186,6 @@ SerialMidi serialMidiGlob(
 		&midi_pitchwheel_handler
 ); 
 
-
 void midi_tx_thread() 
 {
 	uint16_t b2in_value; 
@@ -169,7 +194,7 @@ void midi_tx_thread()
 	uint16_t tmp; 
 	int16_t tmpsig; 
 	uint8_t tmp8_t;
-
+	
 
 	// Analog inputs 
 	AnalogIn b2in(PTB2, MBED_CONF_TARGET_DEFAULT_ADC_VREF);
@@ -185,12 +210,28 @@ void midi_tx_thread()
 	// Built in magneto and gyro chip of the NXP FRDM board 
 	FXOS8700CQ magneto(PTE25, PTE24, FXOS8700CQ_SLAVE_ADDR1);
 	magneto.enable();
-	printf("Sensor: %2X", magneto.get_whoami());
-	magneto.get_accel_scale();
-//	printf("Magneto %d %d %d\n", 
-//		magneto.getMagnetX(), 
-//		magneto.getMagnetY(), 
-//		magneto.getMagnetZ() );
+
+
+	Scale scl(Scale::ScaleKinds::HARMONIC_MINOR, 0); 
+	uint8_t i, j; 
+	uint8_t midi_note = 60; 
+	
+	// Play the root note 
+	serialMidiGlob.NoteON(SerialMidi::CH1, midi_note, 100);
+	ThisThread::sleep_for(200ms);
+	serialMidiGlob.NoteOFF(SerialMidi::CH1, midi_note, 100);
+	ThisThread::sleep_for(100ms);
+	// Iterate through the rest of the scale 
+
+	for(i = 0; i < scl.notes; i++) {
+		printf("midi_note: %d | ", midi_note);
+		midi_note = midi_note + scl.ptrToScale[i]; 
+		serialMidiGlob.NoteON(SerialMidi::CH1, midi_note, 100);
+		ThisThread::sleep_for(200ms);
+		serialMidiGlob.NoteOFF(SerialMidi::CH1, midi_note, 100);
+		ThisThread::sleep_for(100ms);
+	}
+
 
 	while(true ) {
 		/*
@@ -231,14 +272,14 @@ void midi_tx_thread()
 		magneto.get_data();
 		// 16 bit signed
 		//printf("32768 -32768 "); 
-#if 1
+#if 0
 		printf("%04d %04d %04d ", 
 			magneto.getMagnetX(),  
 			magneto.getMagnetY(), 
 			magneto.getMagnetZ());
 		// 14 bit signed
 #endif 
-#if 1 	
+#if 0 	
 		printf("%04d %04d %04d \r\n", 
 			magneto.getAccelX(),
 			magneto.getAccelY(),
@@ -257,6 +298,7 @@ void midi_tx_thread()
 		ThisThread::sleep_for(30ms); 
 	}	
 }
+
 
 
 /**
