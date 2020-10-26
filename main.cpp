@@ -3,23 +3,53 @@
   * Jan-Willem Smaal <usenet@gispen.org>  
  */
 #include "MK64F12.h"
+//#include "MK66F18.h"
 #include "Semaphore.h"
 #include "ThisThread.h"
 #include "mbed.h"
 #include "SerialBase.h"
 #include <cstdint>
 #include <cstdio>
+#include <iostream>
+
+// MIDI transforms 
+#include "TransformMIDI.h"
 
 // Musical scale implementation by Jan-Willem Smaal <usenet@gispen.org> 
-#include "midi-scales.h"
+//#include "midi-scales.h"
+#include "Harmony.hpp"
 
 // Serial USART MIDI implementation by Jan-Willem Smaal <usenet@gispen.org> 
 #include "serial-midi.h"
+/*  
+ * TODO: Need to rewrite this below so that it becomes a singleton. 
+ * on second thought maybe not because there can be multiple MIDI inputs.
+ * therefore multiple MIDI parsers. 
+ * in any case needs some work to port from C to C++ properly.   
+ */  
+SerialMidi serialMidiGlob(
+		&midi_note_on_handler,
+		&realtime_handler,
+		&midi_note_off_handler,
+		&midi_control_change_handler,
+		&midi_pitchwheel_handler
+); 
+
+Chord::Type chordTypeGlob = Chord::Type::MAJOR;  
 
 // Driver for the Magneto and Gyro 
 #include "FXOS8700CQ.h"
 
+/** Minimal LCD lib by Jan-Willem Smaal <usenet@gispen.org>
+ * need to do something about it being accessable from 
+ * all threads. 
+ */ 
+#include "i2c-lcd.h"
 
+/** Musical Harmony lib by Jan-Willem Smaal <usenet@gispen.org> 
+ *
+ */
+ #include "Harmony.hpp" 
 
 /////////////////////////////////////////////////////////////////
 //  MIDI callback functions  
@@ -29,30 +59,33 @@
 void midi_note_on_handler(uint8_t note, uint8_t velocity) {
 	printf("midi_note_on_handler(%2X, %2X)\n", note, velocity);
 
-
-	Scale scl(Scale::ScaleKinds::HARMONIC_MINOR, 0); 
+	Scale scl(Scale::TypeOfScale::OCTATONIC, note); 
 	uint8_t i, j; 
 	uint8_t midi_note = note; 
-	
-	// Play the root note based on value received
-	printf("midi_note: %d | ", midi_note);
-	#if 0 
-	serialMidiGlob.NoteON(SerialMidi::CH1, midi_note, velocity);
-	ThisThread::sleep_for(40ms);
-	serialMidiGlob.NoteOFF(SerialMidi::CH1, midi_note, velocity);
-	ThisThread::sleep_for(40ms);
-	#endif 
 
-	// Iterate through the rest of the scale 
-	for(i = 0; i < scl.notes; i++) {
-		printf("midi_note: %d | ", midi_note);
-		midi_note = midi_note + scl.ptrToScale[i]; 
-		#if 0
-		serialMidiGlob.NoteON(SerialMidi::CH1, midi_note, velocity;
-		ThisThread::sleep_for(40ms);
-		serialMidiGlob.NoteOFF(SerialMidi::CH1, midi_note, velocity;
-		ThisThread::sleep_for(40ms);
-		#endif 
+#if 0	// Go through all the modes and notes of this scale 
+	for(auto mode: scl.modes) {
+		for (auto note: mode.notes) {
+			std::cout << "\t"<< note.Name();
+			serialMidiGlob.NoteON(SerialMidi::CH1, note.number, velocity);
+			ThisThread::sleep_for(80ms);
+			serialMidiGlob.NoteOFF(SerialMidi::CH1, note.number, 100);
+			ThisThread::sleep_for(80ms);
+		}
+		std::cout << std::endl;
+	}
+#endif 
+	// Play a Chord based on the root note given.  
+	//Chord chrd(Chord::Type::DIMINISHED_7, note, note);
+	// Chord played is based on the Modulation wheel. 
+	Chord chrd(chordTypeGlob, note, note);
+	for(auto note: chrd.voicing) {
+		serialMidiGlob.NoteON(SerialMidi::CH1, note.number, velocity);
+	}
+	ThisThread::sleep_for(1400ms);
+	// Make sure we also send a note off.... 
+	for(auto note: chrd.voicing) {
+		serialMidiGlob.NoteOFF(SerialMidi::CH1, note.number, 100);
 	}
 
 	return; 
@@ -82,9 +115,9 @@ void realtime_handler(uint8_t msg)
 			t.stop(); 
 	 		bpm = 60000000 /  duration_cast<milliseconds>(t.elapsed_time()).count();
 			//sem_led.acquire(); 
-			 printf("%llu ms %llu us, BPM %llu\n", 
+			 printf("%llu %llu\n", 
 			 		duration_cast<milliseconds>(t.elapsed_time()).count(),
-					duration_cast<microseconds>(t.elapsed_time()).count(),
+				//	duration_cast<microseconds>(t.elapsed_time()).count(),
 					bpm
 				 );
 			//sem_led.release(); 
@@ -122,6 +155,17 @@ void midi_note_off_handler(uint8_t note, uint8_t velocity) {
 
 void midi_control_change_handler(uint8_t controller, uint8_t value) {
 	printf("midi_control_change_handler(%2X, %2X)\n", controller, value);
+
+	if (value > 127 ) return; 
+ 	if (value >= 0 && value < 16 ) 	chordTypeGlob = Chord::Type::MAJOR;	
+	if (value >= 16 && value < 32)	chordTypeGlob = Chord::Type::MINOR;
+	if (value >= 32 && value < 48) 	chordTypeGlob = Chord::Type::AUGMENTED;
+	if (value >= 48 && value < 64) 	chordTypeGlob = Chord::Type::DIMINISHED_7;
+	if (value >= 64 && value < 80) 	chordTypeGlob = Chord::Type::MINOR_7_FLAT5;
+	if (value >= 80 && value < 96) 	chordTypeGlob = Chord::Type::DOMINANT_7_ADD9_SHARP11;
+	if (value >= 96 && value < 112) chordTypeGlob = Chord::Type::DOMINANT_7_ADD9_FLAT5;
+	if (value >= 112 && value < 128) chordTypeGlob = Chord::Type::SUS4;
+	
 	return; 
 }
 
@@ -145,61 +189,36 @@ void midi_pitchwheel_handler(uint8_t valueLSB, uint8_t valueMSB)  {
 /////////////////////////////////////////////////////////////////
 // Threads 
 /////////////////////////////////////////////////////////////////
-Thread thread_led1;
-Thread thread_led2;
 Thread thread_midi_tx;
 
-
-
-void led1_thread()
-{
-    while (true) {
-       	ThisThread::sleep_for(1ms);
-    }
-}
-
-void led2_thread()
-{
-	DigitalOut led2(LED2);
-	led2 =1; 
-	
-    while (true) {
-		//sem_led.acquire();
-        printf("2");
-		//pc.write("2",1);
-		//sem_led.release();
-        ThisThread::sleep_for(10ms);
-    }
-}
-
-
-/*  
- * Need to rewrite this so that it becomes a singleton class
- * Reason is that the serial port is used and can only be used in 
- * one class 
- */  
-SerialMidi serialMidiGlob(
-		&midi_note_on_handler,
-		&realtime_handler,
-		&midi_note_off_handler,
-		&midi_control_change_handler,
-		&midi_pitchwheel_handler
-); 
 
 void midi_tx_thread() 
 {
 	uint16_t b2in_value; 
+	uint8_t	prev_b2in_value;
+	
 	uint16_t b3in_value;
+	uint8_t  prev_b3in_value; 
+
+	uint16_t ribbon_value;
+	uint8_t prev_ribbon_value;
+	
 	uint16_t prev_tmp; 
 	uint16_t tmp; 
 	int16_t tmpsig; 
 	uint8_t tmp8_t;
 	
 
-	// Analog inputs 
+	// Analog inputs on K66 board  
+	//AnalogIn b2in(PTB7, MBED_CONF_TARGET_DEFAULT_ADC_VREF);
+	//AnalogIn b3in(PTB6, MBED_CONF_TARGET_DEFAULT_ADC_VREF);
+	//AnalogIn ribbon(PTB5, MBED_CONF_TARGET_DEFAULT_ADC_VREF);
+	
+	// K64 board 
 	AnalogIn b2in(PTB2, MBED_CONF_TARGET_DEFAULT_ADC_VREF);
 	AnalogIn b3in(PTB3, MBED_CONF_TARGET_DEFAULT_ADC_VREF);
-
+	AnalogIn ribbon(PTB10, MBED_CONF_TARGET_DEFAULT_ADC_VREF);
+	
 
 	// I prefer the USB console port of the mbed to be 115200
 	// This way printf's don't slow down the execution of the thread. 
@@ -208,14 +227,32 @@ void midi_tx_thread()
 	pc.set_baud(115200);
 
 	// Built in magneto and gyro chip of the NXP FRDM board 
-	FXOS8700CQ magneto(PTE25, PTE24, FXOS8700CQ_SLAVE_ADDR1);
-	magneto.enable();
+	//FXOS8700CQ magneto(PTE25, PTE24, FXOS8700CQ_SLAVE_ADDR1);
+	//magneto.enable();
 
 
-	Scale scl(Scale::ScaleKinds::HARMONIC_MINOR, 0); 
+	//Scale scl(Scale::ScaleKinds::HARMONIC_MINOR, 0); 
+	Scale  scl(Scale::TypeOfScale::HARMONIC_MINOR, 0); 
+
 	uint8_t i, j; 
 	uint8_t midi_note = 60; 
 	
+	// Trying out the new type of scale. 
+	//Scale scl2(Scale2::TypeOfScale::GYPSY, 60);
+	Scale scl2(Scale::TypeOfScale::GYPSY, 60);
+
+	for(auto mode: scl2.modes) {
+		for (auto note: mode.notes) {
+			//std::cout << "\t"<< note.Name();
+			serialMidiGlob.NoteON(SerialMidi::CH1, note.number, 100);
+			ThisThread::sleep_for(200ms);
+			serialMidiGlob.NoteOFF(SerialMidi::CH1, note.number, 100);
+			ThisThread::sleep_for(100ms);
+		}
+		//std::cout << std::endl;
+	}
+
+#if 0 
 	// Play the root note 
 	serialMidiGlob.NoteON(SerialMidi::CH1, midi_note, 100);
 	ThisThread::sleep_for(200ms);
@@ -231,48 +268,58 @@ void midi_tx_thread()
 		serialMidiGlob.NoteOFF(SerialMidi::CH1, midi_note, 100);
 		ThisThread::sleep_for(100ms);
 	}
+#endif 
 
 
+	/** Tx thread should never end. 
+	 */
 	while(true ) {
 		/*
 		* MIDI TX processing 
-		* This should really run in a seperate thread (transmission)  
-		* as MIDI is full duplex.  
+		* run in a seperate thread (transmission) as MIDI is full duplex.  
 		*/
+
+		// A0 potmeter on MIDI shield 
 		tmp = b2in.read_u16(); 
-		//printf("Read b2in %u\n",tmp); 
-		if (tmp == b2in_value) { 
-			// Do nothing 
-		}
-		else { 
-			b2in_value = tmp; 
-			// We are shifting right 9 times as midi value can only 
-			// be 7 bits -->  16-9 = 7)
-			tmp = MIDI_DATA & (tmp >> 9);		 
-			serialMidiGlob.ControlChange(SerialMidi::CH1, 
-									SerialMidi::CTL_MSB_MODWHEEL, 
-									tmp);
+		// We shift right 9 because MIDI only uses 7 bits (16-9 = 7)
+		tmp = (uint8_t)(MIDI_DATA & (tmp >>9)); 
+		if (prev_b2in_value != tmp) {
+			serialMidiGlob.ControlChange(SerialMidi::CH3, 
+									SerialMidi::CTL_MSB_BREATH, 
+									(uint8_t)tmp);
+			prev_b2in_value = tmp; 
 		}
 
 
+		// A1 potmeter on MIDI shield 
 		tmp = b3in.read_u16(); 
-		//printf("Read b3in %u\n",tmp); 
-		if (tmp == b3in_value) {
-			// Do nothing 
-		}
-		else {
-			b3in_value = tmp; 
-			tmp = MIDI_DATA & (tmp >> 9); 
-			serialMidiGlob.ControlChange(SerialMidi::CH1, 
+		// We shift right 9 because MIDI only uses 7 bits (16-9 = 7)
+		tmp = (uint8_t)(MIDI_DATA & (tmp >>9)); 
+		if (prev_b3in_value != tmp) {
+			serialMidiGlob.ControlChange(SerialMidi::CH3, 
 									SerialMidi::CTL_MSB_EXPRESSION, 
-									tmp);
+									(uint8_t)tmp);
+			prev_b3in_value = tmp; 
 		}
-		
 
+		// Ribbon 
+		tmp = ribbon.read_u16(); 
+		// We shift right 9 because MIDI only uses 7 bits (16-9 = 7)
+		tmp = (uint8_t)(MIDI_DATA & (tmp >>9)); 
+		if (prev_ribbon_value != tmp) {
+			serialMidiGlob.ControlChange(SerialMidi::CH3, 
+									SerialMidi::CTL_MSB_MODWHEEL, 
+									(uint8_t)tmp);
+			prev_ribbon_value = tmp; 
+		}
+
+
+		// Magneto sensor   
+#if MAGNETO_SENSOR 
 		magneto.get_data();
 		// 16 bit signed
 		//printf("32768 -32768 "); 
-#if 0
+#if 0 
 		printf("%04d %04d %04d ", 
 			magneto.getMagnetX(),  
 			magneto.getMagnetY(), 
@@ -295,6 +342,10 @@ void midi_tx_thread()
 									tmp);
 			prev_tmp = tmp; 
 		} 
+#endif // MAGNETO_SENSOR 
+
+		// Limit the amount of MIDI messages to something 
+		// a human will not notice the intervals. 
 		ThisThread::sleep_for(30ms); 
 	}	
 }
@@ -313,7 +364,15 @@ int main()
 	uint16_t b2in_value; 
 	uint16_t b3in_value; 
 	uint16_t tmp; 
- 
+ 	I2cLcd i2clcd;
+
+	i2clcd.move_cursor_line1();
+	i2clcd.write(RETURN_HOME);
+	i2clcd.putchar('J');
+	i2clcd.putchar('-');
+	i2clcd.putchar('W');
+	//i2clcd.printf("Hello\n"); 
+
 
 	// I prefer the USB console port of the mbed to be 115200
 	// This way printf's don't slow down the execution of the thread. 
@@ -324,40 +383,7 @@ int main()
     // Initialise the digital pin STAT2 as an output
     DigitalOut stat2(PTC2);
 
-#if 0
-	// Test all the notes 
-	for(i = 0; i < 128; i++) { 
-		serialMidiGlob.NoteON(SerialMidi::CH1, i, 100); 
-		ThisThread::sleep_for(40ms);
-		serialMidiGlob.NoteOFF(SerialMidi::CH1, i, 10); 
-	}
-
-	// Test lower half the modulation wheel steps  
-	for(i = 128; i < 500; i++) { 
-		// explicit cast required as there are two implementations 
-		// of this one based on the bitsize of the int  
-		serialMidiGlob.ModWheel(SerialMidi::CH1, (uint16_t)i); 
-	}
-	
-	// Test Pitch wheel 
-	for(i = 0x1F00; i < 0x2100; i++) { 
-		// explicit cast required as there are two implementations 
-		// of this one 
-		serialMidiGlob.PitchWheel(SerialMidi::CH1, (uint16_t)i);
-		ThisThread::sleep_for(10ms);
-	}
-	
-	// Test all the modulation wheel steps (MSB only)  
-	for(i = 0; i < 128; i++) { 
-		// explicit case required as there are two implementations 
-		// of this one 
-		serialMidiGlob.ModWheel(SerialMidi::CH1, (uint8_t)i); 
-	}
-	serialMidiGlob.ModWheel(SerialMidi::CH1, (uint8_t)0); 
-#endif 
 	// All tests complete start the threads. 
-
-	thread_led1.start(led1_thread);
 	thread_midi_tx.start(midi_tx_thread);
 
     while (true) {
