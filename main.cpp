@@ -35,12 +35,7 @@ SerialMidi serialMidiGlob(
 		&midi_pitchwheel_handler
 ); 
 
-<<<<<<< HEAD
 Chord::Type chordTypeGlob = Chord::Type::MAJOR;  
-=======
-
-
->>>>>>> 7a944e192617cb8befcb3e0d0e1a3da98cda725b
 
 // Driver for the Magneto and Gyro 
 #include "FXOS8700CQ.h"
@@ -199,8 +194,6 @@ void midi_pitchwheel_handler(uint8_t valueLSB, uint8_t valueMSB)  {
 Thread thread_midi_tx;
 
 
-<<<<<<< HEAD
-=======
 void led1_thread()
 {
     while (true) {
@@ -225,7 +218,6 @@ void led2_thread()
 
 
 
->>>>>>> 7a944e192617cb8befcb3e0d0e1a3da98cda725b
 void midi_tx_thread() 
 {
 	uint16_t b2in_value; 
@@ -418,10 +410,7 @@ int main()
     DigitalOut stat2(PTC2);
 
 	// All tests complete start the threads. 
-<<<<<<< HEAD
-=======
-	thread_led1.start(led1_thread);
->>>>>>> 7a944e192617cb8befcb3e0d0e1a3da98cda725b
+//	thread_led1.start(led1_thread);
 	thread_midi_tx.start(midi_tx_thread);
 
     while (true) {
