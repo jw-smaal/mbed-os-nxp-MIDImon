@@ -35,7 +35,12 @@ SerialMidi serialMidiGlob(
 		&midi_pitchwheel_handler
 ); 
 
+<<<<<<< HEAD
 Chord::Type chordTypeGlob = Chord::Type::MAJOR;  
+=======
+
+
+>>>>>>> 7a944e192617cb8befcb3e0d0e1a3da98cda725b
 
 // Driver for the Magneto and Gyro 
 #include "FXOS8700CQ.h"
@@ -63,6 +68,7 @@ void midi_note_on_handler(uint8_t note, uint8_t velocity) {
 	uint8_t i, j; 
 	uint8_t midi_note = note; 
 
+
 #if 0	// Go through all the modes and notes of this scale 
 	for(auto mode: scl.modes) {
 		for (auto note: mode.notes) {
@@ -87,6 +93,7 @@ void midi_note_on_handler(uint8_t note, uint8_t velocity) {
 	for(auto note: chrd.voicing) {
 		serialMidiGlob.NoteOFF(SerialMidi::CH1, note.number, 100);
 	}
+
 
 	return; 
 }
@@ -192,6 +199,33 @@ void midi_pitchwheel_handler(uint8_t valueLSB, uint8_t valueMSB)  {
 Thread thread_midi_tx;
 
 
+<<<<<<< HEAD
+=======
+void led1_thread()
+{
+    while (true) {
+       	ThisThread::sleep_for(1ms);
+    }
+}
+
+void led2_thread()
+{
+	DigitalOut led2(LED2);
+	led2 =1; 
+	
+    while (true) {
+		//sem_led.acquire();
+        printf("2");
+		//pc.write("2",1);
+		//sem_led.release();
+        ThisThread::sleep_for(10ms);
+    }
+}
+
+
+
+
+>>>>>>> 7a944e192617cb8befcb3e0d0e1a3da98cda725b
 void midi_tx_thread() 
 {
 	uint16_t b2in_value; 
@@ -384,6 +418,10 @@ int main()
     DigitalOut stat2(PTC2);
 
 	// All tests complete start the threads. 
+<<<<<<< HEAD
+=======
+	thread_led1.start(led1_thread);
+>>>>>>> 7a944e192617cb8befcb3e0d0e1a3da98cda725b
 	thread_midi_tx.start(midi_tx_thread);
 
     while (true) {

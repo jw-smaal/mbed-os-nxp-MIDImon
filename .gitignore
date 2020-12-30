@@ -8,4 +8,8 @@ TextLCD
 SerialMidi
 FXOS8700CQ
 serialmidi
+<<<<<<< HEAD
+=======
+scales
+>>>>>>> 7a944e192617cb8befcb3e0d0e1a3da98cda725b
 lcd-pcf8574f-fc-113
