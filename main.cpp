@@ -35,12 +35,7 @@ SerialMidi serialMidiGlob(
 		&midi_pitchwheel_handler
 ); 
 
-<<<<<<< HEAD
 Chord::Type chordTypeGlob = Chord::Type::MAJOR;  
-=======
-
-
->>>>>>> 7a944e192617cb8befcb3e0d0e1a3da98cda725b
 
 // Driver for the Magneto and Gyro 
 #include "FXOS8700CQ.h"
@@ -64,13 +59,25 @@ Chord::Type chordTypeGlob = Chord::Type::MAJOR;
 void midi_note_on_handler(uint8_t note, uint8_t velocity) {
 	printf("midi_note_on_handler(%2X, %2X)\n", note, velocity);
 
-	Scale scl(Scale::TypeOfScale::OCTATONIC, note); 
+	Scale scl(Scale::TypeOfScale::HARMONIC_MINOR, note); 
 	uint8_t i, j; 
 	uint8_t midi_note = note; 
 
+	// Velocity decided on the chord quality. 
+	if (velocity > 127 ) return; 
+ 	if (velocity >= 0 && velocity < 16 ) 	chordTypeGlob = Chord::Type::MAJOR;	
+	if (velocity >= 16 && velocity < 32)	chordTypeGlob = Chord::Type::MINOR;
+	if (velocity >= 32 && velocity < 48) 	chordTypeGlob = Chord::Type::AUGMENTED;
+	if (velocity >= 48 && velocity < 64) 	chordTypeGlob = Chord::Type::DIMINISHED_7;
+	if (velocity>= 64 && velocity < 80) 	chordTypeGlob = Chord::Type::MINOR_7_FLAT5;
+	if (velocity >= 80 && velocity < 96) 	chordTypeGlob = Chord::Type::DOMINANT_7_ADD9_SHARP11;
+	if (velocity >= 96 && velocity < 112) 	chordTypeGlob = Chord::Type::DOMINANT_7_ADD9_FLAT5;
+	if (velocity >= 112 && velocity < 128) 	chordTypeGlob = Chord::Type::SUS4;
+	
 
-#if 0	// Go through all the modes and notes of this scale 
+#if 1	// Go through all the modes and notes of this scale 
 	for(auto mode: scl.modes) {
+		std::cout << mode.Name() << "\t"; 
 		for (auto note: mode.notes) {
 			std::cout << "\t"<< note.Name();
 			serialMidiGlob.NoteON(SerialMidi::CH1, note.number, velocity);
@@ -81,18 +88,21 @@ void midi_note_on_handler(uint8_t note, uint8_t velocity) {
 		std::cout << std::endl;
 	}
 #endif 
-	// Play a Chord based on the root note given.  
+
+
+#if 0	// Play a Chord based on the root note given.  
 	//Chord chrd(Chord::Type::DIMINISHED_7, note, note);
 	// Chord played is based on the Modulation wheel. 
 	Chord chrd(chordTypeGlob, note, note);
 	for(auto note: chrd.voicing) {
 		serialMidiGlob.NoteON(SerialMidi::CH1, note.number, velocity);
 	}
-	ThisThread::sleep_for(1400ms);
+	ThisThread::sleep_for(400ms);
 	// Make sure we also send a note off.... 
 	for(auto note: chrd.voicing) {
 		serialMidiGlob.NoteOFF(SerialMidi::CH1, note.number, 100);
 	}
+#endif 
 
 
 	return; 
@@ -199,8 +209,6 @@ void midi_pitchwheel_handler(uint8_t valueLSB, uint8_t valueMSB)  {
 Thread thread_midi_tx;
 
 
-<<<<<<< HEAD
-=======
 void led1_thread()
 {
     while (true) {
@@ -225,7 +233,6 @@ void led2_thread()
 
 
 
->>>>>>> 7a944e192617cb8befcb3e0d0e1a3da98cda725b
 void midi_tx_thread() 
 {
 	uint16_t b2in_value; 
@@ -418,11 +425,8 @@ int main()
     DigitalOut stat2(PTC2);
 
 	// All tests complete start the threads. 
-<<<<<<< HEAD
-=======
-	thread_led1.start(led1_thread);
->>>>>>> 7a944e192617cb8befcb3e0d0e1a3da98cda725b
-	thread_midi_tx.start(midi_tx_thread);
+//	thread_led1.start(led1_thread);
+	//thread_midi_tx.start(midi_tx_thread);
 
     while (true) {
 		// Toggle green stat2 LED.  
