@@ -429,6 +429,7 @@ int main()
 	// All tests complete start the threads. 
 //	thread_led1.start(led1_thread);
 	//thread_midi_tx.start(midi_tx_thread);
+	thread_midi_tx.start(midi_tx_thread);
 
     while (true) {
 		// Toggle green stat2 LED.  
