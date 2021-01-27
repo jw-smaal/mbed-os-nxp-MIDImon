@@ -2,7 +2,7 @@
   * MIDI parsing Test with the NXP FRDM-K64F board
   * Jan-Willem Smaal <usenet@gispen.org>  
  */
-#include "MK64F12.h"
+#include "MK64F12.h" 
 //#include "MK66F18.h"
 #include "Semaphore.h"
 #include "ThisThread.h"
@@ -57,7 +57,7 @@ Chord::Type chordTypeGlob = Chord::Type::MAJOR;
 //        delegates. 
 /////////////////////////////////////////////////////////////////
 void midi_note_on_handler(uint8_t note, uint8_t velocity) {
-	printf("midi_note_on_handler(%2X, %2X)\n", note, velocity);
+	printf("midi_note_on_handler(%d, %d)\n", note, velocity);
 
 	Scale scl(Scale::TypeOfScale::HARMONIC_MINOR, note); 
 	uint8_t i, j; 
@@ -75,7 +75,7 @@ void midi_note_on_handler(uint8_t note, uint8_t velocity) {
 	if (velocity >= 112 && velocity < 128) 	chordTypeGlob = Chord::Type::SUS4;
 	
 
-#if 1	// Go through all the modes and notes of this scale 
+#if 0	// Go through all the modes and notes of this scale 
 	for(auto mode: scl.modes) {
 		std::cout << mode.Name() << "\t"; 
 		for (auto note: mode.notes) {
@@ -90,7 +90,7 @@ void midi_note_on_handler(uint8_t note, uint8_t velocity) {
 #endif 
 
 
-#if 0	// Play a Chord based on the root note given.  
+#if 1	// Play a Chord based on the root note given.  
 	//Chord chrd(Chord::Type::DIMINISHED_7, note, note);
 	// Chord played is based on the Modulation wheel. 
 	Chord chrd(chordTypeGlob, note, note);
@@ -165,7 +165,7 @@ void realtime_handler(uint8_t msg)
 
 
 void midi_note_off_handler(uint8_t note, uint8_t velocity) {
-	printf("midi_note_off_handler(%2X, %2X)\n", note, velocity);
+	printf("midi_note_off_handler(%d, %d)\n", note, velocity);
 	return; 
 }
 
@@ -420,6 +420,8 @@ int main()
 	// too much.  
 	BufferedSerial pc(USBTX, USBRX);
 	pc.set_baud(115200);
+	std::cout << "MIDImon K64 by Jan-Willem Smaal <usenet@gispen.org>";
+	std::cout << std::endl;
 
     // Initialise the digital pin STAT2 as an output
     DigitalOut stat2(PTC2);
